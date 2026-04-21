@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>PicoDeon MIDI Interface</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="rotate-prompt">
+    <div class="rotate-icon">&#x21BB;</div>
+    <p>Rotate your device to landscape</p>
+  </div>
+
+  <div class="top-bar">
+    <div class="control-group">
+      <select id="soundSelect"></select>
+      <div id="status" class="status"></div>
+    </div>
+    <div class="control-group">
+      <select id="midiInput"><option value="">— MIDI Input —</option></select>
+      <div id="midiStatus" class="status midi-status"></div>
+    </div>
+    <div class="control-group size-group">
+      <div class="size-row">
+        <label for="sizeSlider">Key Size</label>
+        <input type="range" id="sizeSlider" min="50" max="150" value="100" step="10">
+        <input type="text" id="sizeInput" class="size-input" value="100" maxlength="3">
+        <button id="sizeReset" class="size-reset" title="Reset">&#x21BA;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="keyboard-stage">
+    <section id="keyboard" class="keyboard"></section>
+  </div>
+
+  <footer class="footer">PicoDeon by <a href="https://picokeebs.fr" target="_blank" rel="noopener">Picokeebs</a></footer>
+
+  <script src="https://unpkg.com/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
