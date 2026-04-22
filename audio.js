@@ -44,9 +44,7 @@ export function play(midi) {
   if (instrument) instrument.play(midi);
 }
 
-export function stop(midi) {
-  if (instrument) instrument.stop(midi);
-}
+export function stop() {}
 
 export function currentName() {
   return currentInstrName;
