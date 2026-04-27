@@ -27,9 +27,19 @@
 
   <title>PicoDeon Player</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quattrocento:wght@400;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="icon.png">
 </head>
 <body>
+  <div id="landingScreen" class="landing-screen">
+    <div class="title-container">
+      <h1 class="logo-title">PicoDeon</h1>
+      <p class="click-prompt">Click anywhere to play</p>
+    </div>
+  </div>
+
   <div class="rotate-prompt">
     <div class="rotate-icon">&#x21BB;</div>
     <p>Rotate your device to landscape</p>
@@ -50,6 +60,14 @@
         <input type="range" id="sizeSlider" min="50" max="150" value="100" step="10">
         <input type="text" id="sizeInput" class="size-input" value="100" maxlength="3">
         <button id="sizeReset" class="size-reset" title="Reset">&#x21BA;</button>
+      </div>
+    </div>
+    <div class="control-group size-group">
+      <div class="size-row">
+        <label for="releaseSlider">Release</label>
+        <input type="range" id="releaseSlider" min="0" max="1" value="0.2" step="0.05">
+        <input type="text" id="releaseInput" class="size-input" value="0.2" maxlength="4">
+        <button id="releaseReset" class="size-reset" title="Reset">&#x21BA;</button>
       </div>
     </div>
   </div>

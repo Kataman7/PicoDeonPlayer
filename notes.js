@@ -43,11 +43,15 @@ export const INSTRUMENTS = {
   electric_guitar_clean: 'Clean Electric Guitar',
   electric_bass_finger: 'Finger Bass',
   string_ensemble_1: 'Strings',
+  violin: 'Violin',
+  cello: 'Cello',
+  orchestral_harp: 'Harp',
   choir_aahs: 'Choir',
+  voice_oohs: 'Voice Oohs',
   synth_choir: 'Synth Choir',
   synth_brass_1: 'Synth Brass',
-  synth_pad_1: 'Synth Pad',
-  synth_pad_2: 'Synth Pad 2',
+  pad_1_new_age: 'Synth Pad 1',
+  pad_2_warm: 'Synth Pad 2',
   flute: 'Flute',
   piccolo: 'Piccolo',
   oboe: 'Oboe',
@@ -62,7 +66,15 @@ export const INSTRUMENTS = {
   trombone: 'Trombone',
   french_horn: 'French Horn',
   tuba: 'Tuba',
-  music_box: 'Music Box'
+  music_box: 'Music Box',
+  banjo: 'Banjo',
+  sitar: 'Sitar',
+  koto: 'Koto',
+  bagpipe: 'Bagpipe',
+  taiko_drum: 'Taiko Drum',
+  fx_1_rain: 'FX: Rain',
+  lead_1_square: 'Synth Lead (Square)',
+  lead_2_sawtooth: 'Synth Lead (Saw)'
 };
 
 export function parseNoteName(name) {
@@ -84,4 +96,13 @@ export function isBlackKey(name) {
   const m = name.match(/^([A-G][sb]?)/);
   if (!m) return false;
   return BLACK_KEYS.has(SEMITONE[m[1]]);
+}
+
+export function midiToName(midi) {
+  const semitoneVal = midi % 12;
+  const octaveVal = Math.floor(midi / 12) - 1 - BASE_OCTAVE;
+  const keyName = Object.keys(SEMITONE).find(k => SEMITONE[k] === semitoneVal);
+  if (!keyName) return '???';
+  const displayKey = DISPLAY[keyName] || keyName;
+  return displayKey + (octaveVal === 0 ? '' : octaveVal);
 }

@@ -36,16 +36,25 @@ export function populateInputSelect() {
   if (!midiAccess) return false;
 
   let hasDevice = false;
+  let targetId = null;
+
   midiAccess.inputs.forEach(input => {
     hasDevice = true;
     const opt = document.createElement('option');
     opt.value = input.id;
     opt.textContent = input.name;
     sel.appendChild(opt);
+
+    if (input.name.toLowerCase().includes('picodeon')) {
+      targetId = input.id;
+    }
   });
 
   if (prev && hasDevice) {
     sel.value = prev;
+  } else if (targetId) {
+    sel.value = targetId;
+    connectInput(targetId);
   }
   return hasDevice;
 }

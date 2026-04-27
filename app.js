@@ -9,6 +9,11 @@ const SIZE_MIN = 50;
 const SIZE_MAX = 150;
 const SIZE_STEP = 10;
 
+const RELEASE_KEY = 'picodeon-release-time';
+const RELEASE_DEFAULT = 0.2;
+const RELEASE_MIN = 0;
+const RELEASE_MAX = 1;
+
 const activeNotes = new Set();
 
 const selSound = document.getElementById('soundSelect');
@@ -18,6 +23,12 @@ const midiStatusEl = document.getElementById('midiStatus');
 const sizeSlider = document.getElementById('sizeSlider');
 const sizeInput = document.getElementById('sizeInput');
 const sizeReset = document.getElementById('sizeReset');
+
+const releaseSlider = document.getElementById('releaseSlider');
+const releaseInput = document.getElementById('releaseInput');
+const releaseReset = document.getElementById('releaseReset');
+
+const landingScreen = document.getElementById('landingScreen');
 
 function applySize(val) {
   const clamped = Math.round(Math.min(SIZE_MAX, Math.max(SIZE_MIN, val)) / SIZE_STEP) * SIZE_STEP;
@@ -35,6 +46,23 @@ function loadSavedSize() {
     if (!isNaN(num)) return Math.min(SIZE_MAX, Math.max(SIZE_MIN, num));
   }
   return SIZE_DEFAULT;
+}
+
+function applyRelease(val) {
+  const clamped = Math.max(RELEASE_MIN, Math.min(RELEASE_MAX, val));
+  releaseSlider.value = clamped;
+  releaseInput.value = clamped;
+  localStorage.setItem(RELEASE_KEY, String(clamped));
+  audio.setFadeOutTime(clamped);
+}
+
+function loadSavedRelease() {
+  const saved = localStorage.getItem(RELEASE_KEY);
+  if (saved) {
+    const num = parseFloat(saved);
+    if (!isNaN(num)) return Math.max(RELEASE_MIN, Math.min(RELEASE_MAX, num));
+  }
+  return RELEASE_DEFAULT;
 }
 
 function setStatus(msg, isError = false) {
@@ -94,8 +122,27 @@ function onInputChange() {
 }
 
 function onDevicesChanged(hasDevice) {
-  if (!hasDevice) setMidiStatus('No PicoDeon detected', false);
-  else if (!selInput.value) setMidiStatus('Select your PicoDeon', true);
+  if (!selInput.value) {
+    setMidiStatus('No PicoDeon detected', false);
+  } else {
+    onInputChange();
+  }
+}
+
+function startGame() {
+  landingScreen.classList.add('hidden');
+  document.body.classList.add('playing');
+  
+  setTimeout(() => {
+    keyboard.build(document.getElementById('keyboard'), noteOn, noteOff);
+    audio.init(setStatus);
+    audio.loadInstrument('accordion');
+    
+    midi.init(
+      () => setMidiStatus('Web MIDI not supported', false),
+      () => setMidiStatus('MIDI access denied', false)
+    );
+  }, 100);
 }
 
 sizeSlider.addEventListener('input', () => applySize(parseInt(sizeSlider.value, 10)));
@@ -111,20 +158,29 @@ sizeInput.addEventListener('keydown', e => {
 
 sizeReset.addEventListener('click', () => applySize(SIZE_DEFAULT));
 
+releaseSlider.addEventListener('input', () => applyRelease(parseFloat(releaseSlider.value)));
+
+releaseInput.addEventListener('change', () => {
+  const val = parseFloat(releaseInput.value);
+  if (isNaN(val)) applyRelease(RELEASE_DEFAULT);
+  else applyRelease(val);
+});
+releaseInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') releaseInput.blur();
+});
+
+releaseReset.addEventListener('click', () => applyRelease(RELEASE_DEFAULT));
+
 midi.setOnMessage(handleMidiNote);
 midi.setOnDevicesChanged(onDevicesChanged);
 
 populateSoundSelect();
-audio.init(setStatus);
-audio.loadInstrument('accordion');
-keyboard.build(document.getElementById('keyboard'), noteOn, noteOff);
 
 selSound.addEventListener('change', onSoundChange);
 selInput.addEventListener('change', onInputChange);
 
+landingScreen.addEventListener('click', startGame);
+
 applySize(loadSavedSize());
+applyRelease(loadSavedRelease());
 setStatus('Click a key to start');
-midi.init(
-  () => setMidiStatus('Web MIDI not supported', false),
-  err => setMidiStatus('MIDI access denied', false)
-);
