@@ -3,6 +3,8 @@ import * as audio from './audio.js';
 import * as keyboard from './keyboard.js';
 import * as midi from './midi.js';
 
+const DEFAULT_INSTRUMENT = 'accordion';
+
 const SIZE_KEY = 'picodeon-key-scale';
 const SIZE_DEFAULT = 100;
 const SIZE_MIN = 50;
@@ -14,55 +16,94 @@ const RELEASE_DEFAULT = 0.2;
 const RELEASE_MIN = 0;
 const RELEASE_MAX = 1;
 
+const LOOP_KEY = 'picodeon-loop';
+
 const activeNotes = new Set();
+let currentInstrumentKey = DEFAULT_INSTRUMENT;
 
-const selSound = document.getElementById('soundSelect');
-const selInput = document.getElementById('midiInput');
-const statusEl = document.getElementById('status');
-const midiStatusEl = document.getElementById('midiStatus');
-const sizeSlider = document.getElementById('sizeSlider');
-const sizeInput = document.getElementById('sizeInput');
-const sizeReset = document.getElementById('sizeReset');
+const currentInstrumentLabel = getElement('currentInstrumentLabel');
+const btnInstrument = getElement('btnInstrument');
+const instrumentModal = getElement('instrumentModal');
+const mainApp = getElement('mainApp');
+const instrumentSearch = getElement('instrumentSearch');
+const btnCloseModal = getElement('btnCloseModal');
+const instrumentGrid = getElement('instrumentGrid');
+const selInput = getElement('midiInput');
+const statusEl = getElement('status');
+const midiStatusEl = getElement('midiStatus');
+const sizeSlider = getElement('sizeSlider');
+const sizeInput = getElement('sizeInput');
+const sizeReset = getElement('sizeReset');
+const releaseSlider = getElement('releaseSlider');
+const releaseInput = getElement('releaseInput');
+const releaseReset = getElement('releaseReset');
+const loopToggle = getElement('loopToggle');
+const landingScreen = getElement('landingScreen');
 
-const releaseSlider = document.getElementById('releaseSlider');
-const releaseInput = document.getElementById('releaseInput');
-const releaseReset = document.getElementById('releaseReset');
+function getElement(id) {
+  return document.getElementById(id);
+}
 
-const landingScreen = document.getElementById('landingScreen');
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function parseIntOrDefault(raw, fallback) {
+  const num = parseInt(raw, 10);
+  return isNaN(num) ? fallback : num;
+}
+
+function parseFloatOrDefault(raw, fallback) {
+  const num = parseFloat(raw);
+  return isNaN(num) ? fallback : num;
+}
+
+function storeBoolean(key, value) {
+  localStorage.setItem(key, value ? '1' : '0');
+}
+
+function loadBoolean(key) {
+  return localStorage.getItem(key) === '1';
+}
+
+function storeNumber(key, value) {
+  localStorage.setItem(key, String(value));
+}
+
+function loadNumber(key, fallback) {
+  const raw = localStorage.getItem(key);
+  return raw ? parseFloatOrDefault(raw, fallback) : fallback;
+}
+
+function roundToStep(value, step) {
+  return Math.round(value / step) * step;
+}
 
 function applySize(val) {
-  const clamped = Math.round(Math.min(SIZE_MAX, Math.max(SIZE_MIN, val)) / SIZE_STEP) * SIZE_STEP;
+  const clamped = roundToStep(clamp(val, SIZE_MIN, SIZE_MAX), SIZE_STEP);
   const scale = clamped / 100;
   document.documentElement.style.setProperty('--key-scale', scale);
   sizeSlider.value = clamped;
   sizeInput.value = clamped;
-  localStorage.setItem(SIZE_KEY, String(clamped));
+  storeNumber(SIZE_KEY, clamped);
 }
 
 function loadSavedSize() {
-  const saved = localStorage.getItem(SIZE_KEY);
-  if (saved) {
-    const num = parseInt(saved, 10);
-    if (!isNaN(num)) return Math.min(SIZE_MAX, Math.max(SIZE_MIN, num));
-  }
-  return SIZE_DEFAULT;
+  const saved = loadNumber(SIZE_KEY, SIZE_DEFAULT);
+  return clamp(saved, SIZE_MIN, SIZE_MAX);
 }
 
 function applyRelease(val) {
-  const clamped = Math.max(RELEASE_MIN, Math.min(RELEASE_MAX, val));
+  const clamped = clamp(val, RELEASE_MIN, RELEASE_MAX);
   releaseSlider.value = clamped;
   releaseInput.value = clamped;
-  localStorage.setItem(RELEASE_KEY, String(clamped));
+  storeNumber(RELEASE_KEY, clamped);
   audio.setFadeOutTime(clamped);
 }
 
 function loadSavedRelease() {
-  const saved = localStorage.getItem(RELEASE_KEY);
-  if (saved) {
-    const num = parseFloat(saved);
-    if (!isNaN(num)) return Math.max(RELEASE_MIN, Math.min(RELEASE_MAX, num));
-  }
-  return RELEASE_DEFAULT;
+  const saved = loadNumber(RELEASE_KEY, RELEASE_DEFAULT);
+  return clamp(saved, RELEASE_MIN, RELEASE_MAX);
 }
 
 function setStatus(msg, isError = false) {
@@ -94,15 +135,58 @@ function handleMidiNote(midi, isOn) {
   else noteOff(midi);
 }
 
-function populateSoundSelect() {
-  selSound.innerHTML = '';
+function clearGrid() {
+  instrumentGrid.innerHTML = '';
+}
+
+function matchesSearch(key, label, query) {
+  return label.toLowerCase().includes(query) || key.toLowerCase().includes(query);
+}
+
+function createInstrumentTile(key, label) {
+  const btn = document.createElement('button');
+  const isActive = key === currentInstrumentKey;
+  btn.className = `instrument-tile${isActive ? ' active' : ''}`;
+  btn.textContent = label;
+  return btn;
+}
+
+function renderInstrumentTile(key, label) {
+  const tile = createInstrumentTile(key, label);
+  tile.addEventListener('click', () => selectInstrument(key, label));
+  instrumentGrid.appendChild(tile);
+}
+
+function populateInstrumentGrid(filterText = '') {
+  clearGrid();
+  const query = filterText.toLowerCase();
+
   Object.entries(INSTRUMENTS).forEach(([key, label]) => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = label;
-    selSound.appendChild(opt);
+    if (matchesSearch(key, label, query)) {
+      renderInstrumentTile(key, label);
+    }
   });
-  selSound.value = 'accordion';
+}
+
+function selectInstrument(key, label) {
+  currentInstrumentKey = key;
+  currentInstrumentLabel.textContent = label;
+  clearActiveNotes();
+  audio.loadInstrument(key);
+  closeModal();
+}
+
+function openModal() {
+  mainApp.classList.add('hidden-view');
+  instrumentModal.classList.remove('hidden-view');
+  instrumentSearch.value = '';
+  populateInstrumentGrid();
+  instrumentSearch.focus();
+}
+
+function closeModal() {
+  instrumentModal.classList.add('hidden-view');
+  mainApp.classList.remove('hidden-view');
 }
 
 function clearActiveNotes() {
@@ -110,14 +194,9 @@ function clearActiveNotes() {
   keyboard.clearAllHighlights();
 }
 
-function onSoundChange() {
-  clearActiveNotes();
-  audio.loadInstrument(selSound.value);
-}
-
 function onInputChange() {
   const name = midi.connectInput(selInput.value);
-  if (name) setMidiStatus('Connected: ' + name, true);
+  if (name) setMidiStatus(`Connected: ${name}`, true);
   else setMidiStatus('', true);
 }
 
@@ -129,58 +208,93 @@ function onDevicesChanged(hasDevice) {
   }
 }
 
+function initKeyboard() {
+  keyboard.build(getElement('keyboard'), noteOn, noteOff);
+}
+
+function initAudio() {
+  audio.init(setStatus);
+  audio.loadInstrument(DEFAULT_INSTRUMENT);
+}
+
+function initMidi() {
+  midi.init(
+    () => setMidiStatus('Web MIDI not supported', false),
+    () => setMidiStatus('MIDI access denied', false)
+  );
+}
+
 function startGame() {
   landingScreen.classList.add('hidden');
   document.body.classList.add('playing');
-  
   setTimeout(() => {
-    keyboard.build(document.getElementById('keyboard'), noteOn, noteOff);
-    audio.init(setStatus);
-    audio.loadInstrument('accordion');
-    
-    midi.init(
-      () => setMidiStatus('Web MIDI not supported', false),
-      () => setMidiStatus('MIDI access denied', false)
-    );
+    initKeyboard();
+    initAudio();
+    initMidi();
   }, 100);
 }
 
-sizeSlider.addEventListener('input', () => applySize(parseInt(sizeSlider.value, 10)));
+function blurOnEnter(event) {
+  if (event.key === 'Enter') event.target.blur();
+}
 
-sizeInput.addEventListener('change', () => {
-  const val = parseInt(sizeInput.value, 10);
-  if (isNaN(val)) applySize(SIZE_DEFAULT);
-  else applySize(val);
-});
-sizeInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') sizeInput.blur();
-});
+function wireSizeControls() {
+  sizeSlider.addEventListener('input', () => applySize(parseInt(sizeSlider.value, 10)));
+  sizeInput.addEventListener('change', () => {
+    const val = parseIntOrDefault(sizeInput.value, SIZE_DEFAULT);
+    applySize(val);
+  });
+  sizeInput.addEventListener('keydown', blurOnEnter);
+  sizeReset.addEventListener('click', () => applySize(SIZE_DEFAULT));
+}
 
-sizeReset.addEventListener('click', () => applySize(SIZE_DEFAULT));
+function wireReleaseControls() {
+  releaseSlider.addEventListener('input', () => applyRelease(parseFloat(releaseSlider.value)));
+  releaseInput.addEventListener('change', () => {
+    const val = parseFloatOrDefault(releaseInput.value, RELEASE_DEFAULT);
+    applyRelease(val);
+  });
+  releaseInput.addEventListener('keydown', blurOnEnter);
+  releaseReset.addEventListener('click', () => applyRelease(RELEASE_DEFAULT));
+}
 
-releaseSlider.addEventListener('input', () => applyRelease(parseFloat(releaseSlider.value)));
+function applyLoop(enabled) {
+  loopToggle.checked = enabled;
+  storeBoolean(LOOP_KEY, enabled);
+  audio.setLoopMode(enabled);
+}
 
-releaseInput.addEventListener('change', () => {
-  const val = parseFloat(releaseInput.value);
-  if (isNaN(val)) applyRelease(RELEASE_DEFAULT);
-  else applyRelease(val);
-});
-releaseInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') releaseInput.blur();
-});
+function wireLoopControl() {
+  loopToggle.addEventListener('change', () => applyLoop(loopToggle.checked));
+}
 
-releaseReset.addEventListener('click', () => applyRelease(RELEASE_DEFAULT));
+function wireMidi() {
+  midi.setOnMessage(handleMidiNote);
+  midi.setOnDevicesChanged(onDevicesChanged);
+  selInput.addEventListener('change', onInputChange);
+}
 
-midi.setOnMessage(handleMidiNote);
-midi.setOnDevicesChanged(onDevicesChanged);
+function wireModal() {
+  btnInstrument.addEventListener('click', openModal);
+  btnCloseModal.addEventListener('click', closeModal);
+  instrumentSearch.addEventListener('input', (e) => populateInstrumentGrid(e.target.value));
+}
 
-populateSoundSelect();
+function wireEvents() {
+  wireSizeControls();
+  wireReleaseControls();
+  wireLoopControl();
+  wireMidi();
+  wireModal();
+  landingScreen.addEventListener('click', startGame);
+}
 
-selSound.addEventListener('change', onSoundChange);
-selInput.addEventListener('change', onInputChange);
+function restoreSettings() {
+  applySize(loadSavedSize());
+  applyRelease(loadSavedRelease());
+  applyLoop(loadBoolean(LOOP_KEY));
+}
 
-landingScreen.addEventListener('click', startGame);
-
-applySize(loadSavedSize());
-applyRelease(loadSavedRelease());
+wireEvents();
+restoreSettings();
 setStatus('Click a key to start');

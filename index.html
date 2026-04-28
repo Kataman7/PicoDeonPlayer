@@ -45,38 +45,58 @@
     <p>Rotate your device to landscape</p>
   </div>
 
-  <div class="top-bar">
-    <div class="control-group">
-      <select id="soundSelect"></select>
-      <div id="status" class="status"></div>
-    </div>
-    <div class="control-group">
-      <select id="midiInput"><option value="">— MIDI Input —</option></select>
-      <div id="midiStatus" class="status midi-status"></div>
-    </div>
-    <div class="control-group size-group">
-      <div class="size-row">
-        <label for="sizeSlider">Key Size</label>
-        <input type="range" id="sizeSlider" min="50" max="150" value="100" step="10">
-        <input type="text" id="sizeInput" class="size-input" value="100" maxlength="3">
-        <button id="sizeReset" class="size-reset" title="Reset">&#x21BA;</button>
+  <div id="mainApp" class="view-container player-view">
+    <div class="top-bar">
+      <div class="control-group">
+        <div class="instrument-row">
+          <span id="currentInstrumentLabel" class="instrument-label">Accordion</span>
+          <button id="btnInstrument" class="btn-link">Change...</button>
+        </div>
+        <div id="status" class="status"></div>
+      </div>
+      <div class="control-group">
+        <select id="midiInput"><option value="">— MIDI Input —</option></select>
+        <div id="midiStatus" class="status midi-status"></div>
+      </div>
+      <div class="control-group size-group">
+        <div class="size-row">
+          <label for="sizeSlider">Key Size</label>
+          <input type="range" id="sizeSlider" min="50" max="150" value="100" step="10">
+          <input type="text" id="sizeInput" class="size-input" value="100" maxlength="3">
+          <button id="sizeReset" class="size-reset" title="Reset">&#x21BA;</button>
+        </div>
+      </div>
+      <div class="control-group size-group">
+        <div class="size-row">
+          <label for="releaseSlider">Release</label>
+          <input type="range" id="releaseSlider" min="0" max="1" value="0.2" step="0.05">
+          <input type="text" id="releaseInput" class="size-input" value="0.2" maxlength="4">
+          <button id="releaseReset" class="size-reset" title="Reset">&#x21BA;</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="loopToggle">
+          <span>Loop</span>
+        </label>
       </div>
     </div>
-    <div class="control-group size-group">
-      <div class="size-row">
-        <label for="releaseSlider">Release</label>
-        <input type="range" id="releaseSlider" min="0" max="1" value="0.2" step="0.05">
-        <input type="text" id="releaseInput" class="size-input" value="0.2" maxlength="4">
-        <button id="releaseReset" class="size-reset" title="Reset">&#x21BA;</button>
-      </div>
+
+    <div class="keyboard-stage">
+      <section id="keyboard" class="keyboard"></section>
     </div>
+
+    <footer class="footer">PicoDeon by <a href="https://picokeebs.fr" target="_blank" rel="noopener">Picokeebs</a></footer>
   </div>
 
-  <div class="keyboard-stage">
-    <section id="keyboard" class="keyboard"></section>
+  <div id="instrumentModal" class="view-container instrument-view hidden-view">
+    <div class="modal-header">
+      <h2 class="modal-title">Select Instrument</h2>
+      <input type="text" id="instrumentSearch" class="instrument-search" placeholder="Search...">
+      <button id="btnCloseModal" class="btn-link btn-close-text">Cancel</button>
+    </div>
+    <div id="instrumentGrid" class="instrument-grid"></div>
   </div>
-
-  <footer class="footer">PicoDeon by <a href="https://picokeebs.fr" target="_blank" rel="noopener">Picokeebs</a></footer>
 
   <script src="https://unpkg.com/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
   <script type="module" src="app.js"></script>
