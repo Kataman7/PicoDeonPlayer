@@ -184,30 +184,6 @@ body.playing .top-bar{
 }
 .control-group select:focus, .btn-select:focus, .btn-select:hover{outline:none;border-color:var(--accent)}
 
-.btn-calibrate{
-  appearance:none;
-  padding:.3rem .6rem;
-  border:1px solid var(--border);border-radius:8px;
-  background:var(--card);color:var(--text);
-  font-size:.7rem;font-family:inherit;
-  font-weight:600;
-  cursor:pointer;
-  transition:all .2s;
-  min-width:80px;
-}
-.btn-calibrate:hover{
-  border-color:var(--text);
-}
-.btn-calibrate.calibrating{
-  background:var(--text);
-  color:var(--bg);
-  animation:pulse-cal 1s infinite alternate;
-}
-@keyframes pulse-cal{
-  from { opacity: 1; }
-  to { opacity: 0.6; }
-}
-
 .status{font-size:.6rem;color:var(--text-muted);white-space:nowrap}
 .midi-status.no-device{color:var(--error)}
 
@@ -291,8 +267,9 @@ body.playing .top-bar{
   font-weight:700;color:var(--text-muted);
   user-select:none;cursor:pointer;
   touch-action:manipulation;
+  opacity:0;
   transition:background .12s ease,box-shadow .12s ease,border-color .12s ease,color .12s ease,transform .08s ease;
-  animation: keyPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation: keyPopIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 @keyframes keyPopIn {
@@ -334,7 +311,6 @@ body.playing .footer{
 }
 .footer a:hover{color:var(--accent)}
 
-
 .modal-header{
   display:flex;align-items:center;justify-content:space-between;
   margin-bottom:2rem;gap:1rem;flex-wrap:wrap;
@@ -353,14 +329,6 @@ body.playing .footer{
   transition:border-color 0.2s;
 }
 .instrument-search:focus{border-color:var(--text);}
-.btn-close{
-  background:none;border:none;
-  font-size:3rem;line-height:1;
-  color:var(--text);cursor:pointer;
-  padding:0 0.5rem;
-  transition:transform 0.2s;
-}
-.btn-close:hover{transform:scale(1.1);}
 
 .instrument-grid{
   flex:1;
@@ -390,10 +358,4 @@ body.playing .footer{
   background:var(--text);
   color:var(--bg);
   border-color:var(--text);
-}
-.instrument-grid.searching .instrument-tile{
-  display:none;
-}
-.instrument-grid.searching .instrument-tile.match{
-  display:block;
 }

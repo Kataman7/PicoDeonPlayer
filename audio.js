@@ -222,7 +222,7 @@ function startLoopedPlayback(midi, prepared, gain) {
   playingNodes.set(midi, { loopSource, gain, autoReleaseId: null });
 }
 
-function playAttackAndExtractBuffer(midi) {
+function stealBufferFromSoundfontNode(midi) {
   const gain = createPlaybackGain();
   const node = instrument.play(midi, audioCtx.currentTime, {
     destination: gain,
@@ -232,8 +232,8 @@ function playAttackAndExtractBuffer(midi) {
 
   const buffer = extractBufferFromNode(node);
   if (!buffer) {
-    playingNodes.set(midi, { source: node, gain, loopSource: null, autoReleaseId: null });
-    return null;
+    node.source.stop(audioCtx.currentTime + THROWAWAY_STOP_DELAY);
+    return { buffer: null, gain };
   }
 
   node.source.stop(audioCtx.currentTime + THROWAWAY_STOP_DELAY);
@@ -241,11 +241,11 @@ function playAttackAndExtractBuffer(midi) {
 }
 
 function playLooped(midi) {
-  const attack = playAttackAndExtractBuffer(midi);
-  if (!attack) return;
+  const stolen = stealBufferFromSoundfontNode(midi);
+  if (!stolen.buffer) return;
 
-  const prepared = buildLoopedBuffer(attack.buffer);
-  startLoopedPlayback(midi, prepared, attack.gain);
+  const prepared = buildLoopedBuffer(stolen.buffer);
+  startLoopedPlayback(midi, prepared, stolen.gain);
 }
 
 function computeBufferDuration(source) {

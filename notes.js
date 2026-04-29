@@ -152,8 +152,7 @@ export const INSTRUMENTS = {
   gunshot: 'Gunshot'
 };
 
-const NOTE_NAME_REGEX = /^([A-G][sb]?)\d?$/;
-const NOTE_NAME_ONLY_REGEX = /^([A-G][sb]?)/;
+const NOTE_NAME_REGEX = /^([A-G][sb]?)(\d)?$/;
 
 function extractSemitone(name) {
   return SEMITONE[name];
@@ -172,13 +171,18 @@ export function parseNoteName(name) {
 }
 
 export function noteDisplayName(name) {
-  const match = name.match(NOTE_NAME_ONLY_REGEX);
+  const match = name.match(NOTE_NAME_REGEX);
   if (!match) return name;
-  return DISPLAY[match[1]] || match[1];
+
+  const display = DISPLAY[match[1]] || match[1];
+  const octaveOffset = match[2];
+
+  if (!octaveOffset) return display;
+  return display + octaveOffset;
 }
 
 export function isBlackKey(name) {
-  const match = name.match(NOTE_NAME_ONLY_REGEX);
+  const match = name.match(/^([A-G][sb]?)/);
   if (!match) return false;
   return BLACK_KEYS.has(SEMITONE[match[1]]);
 }

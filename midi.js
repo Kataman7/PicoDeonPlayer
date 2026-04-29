@@ -58,10 +58,13 @@ function findAutoConnectTarget(inputs) {
   return targetId;
 }
 
-function restoreOrAutoConnect(select, prevValue, targetId, hasDevice) {
+function restoreSelectionOrAutoConnect(select, prevValue, targetId, hasDevice) {
   if (prevValue && hasDevice) {
     select.value = prevValue;
-  } else if (targetId) {
+    return;
+  }
+
+  if (targetId) {
     select.value = targetId;
     connectInput(targetId);
   }
@@ -105,7 +108,7 @@ export function populateInputSelect() {
   sel.appendChild(fragment);
 
   const targetId = findAutoConnectTarget(midiAccess.inputs);
-  restoreOrAutoConnect(sel, prev, targetId, hasDevice);
+  restoreSelectionOrAutoConnect(sel, prev, targetId, hasDevice);
 
   return hasDevice;
 }

@@ -18,8 +18,15 @@ const RELEASE_MAX = 1;
 
 const LOOP_KEY = 'picodeon-loop';
 
+const TRANSPOSE_KEY = 'picodeon-transpose';
+const TRANSPOSE_DEFAULT = 0;
+const TRANSPOSE_MIN = -2;
+const TRANSPOSE_MAX = 2;
+const SEMITONES_PER_OCTAVE = 12;
+
 const activeNotes = new Set();
 let currentInstrumentKey = DEFAULT_INSTRUMENT;
+let transposeOffset = TRANSPOSE_DEFAULT;
 
 const currentInstrumentLabel = getElement('currentInstrumentLabel');
 const btnInstrument = getElement('btnInstrument');
@@ -38,6 +45,9 @@ const releaseSlider = getElement('releaseSlider');
 const releaseInput = getElement('releaseInput');
 const releaseReset = getElement('releaseReset');
 const loopToggle = getElement('loopToggle');
+const transposeSlider = getElement('transposeSlider');
+const transposeInput = getElement('transposeInput');
+const transposeReset = getElement('transposeReset');
 const landingScreen = getElement('landingScreen');
 
 function getElement(id) {
@@ -116,23 +126,51 @@ function setMidiStatus(msg, hasDevice) {
   midiStatusEl.classList.toggle('no-device', !hasDevice);
 }
 
-function noteOn(midi) {
-  if (activeNotes.has(midi)) return;
-  activeNotes.add(midi);
-  audio.play(midi);
-  keyboard.highlightOn(midi);
+function computeTransposedMidi(midi) {
+  return midi + (transposeOffset * SEMITONES_PER_OCTAVE);
 }
 
-function noteOff(midi) {
-  if (!activeNotes.has(midi)) return;
+function addActiveNote(midi) {
+  if (activeNotes.has(midi)) return false;
+  activeNotes.add(midi);
+  return true;
+}
+
+function removeActiveNote(midi) {
+  if (!activeNotes.has(midi)) return false;
   activeNotes.delete(midi);
-  audio.stop(midi);
-  keyboard.highlightOff(midi);
+  return true;
+}
+
+function virtualNoteOn(baseMidi) {
+  if (!addActiveNote(baseMidi)) return;
+  audio.play(computeTransposedMidi(baseMidi));
+  keyboard.highlightOn(baseMidi);
+}
+
+function virtualNoteOff(baseMidi) {
+  if (!removeActiveNote(baseMidi)) return;
+  audio.stop(computeTransposedMidi(baseMidi));
+  keyboard.highlightOff(baseMidi);
+}
+
+function midiNoteOn(actualMidi) {
+  if (!addActiveNote(actualMidi)) return;
+  audio.play(actualMidi);
+  const virtualBaseMidi = actualMidi - (transposeOffset * SEMITONES_PER_OCTAVE);
+  keyboard.highlightOn(virtualBaseMidi);
+}
+
+function midiNoteOff(actualMidi) {
+  if (!removeActiveNote(actualMidi)) return;
+  audio.stop(actualMidi);
+  const virtualBaseMidi = actualMidi - (transposeOffset * SEMITONES_PER_OCTAVE);
+  keyboard.highlightOff(virtualBaseMidi);
 }
 
 function handleMidiNote(midi, isOn) {
-  if (isOn) noteOn(midi);
-  else noteOff(midi);
+  if (isOn) midiNoteOn(midi);
+  else midiNoteOff(midi);
 }
 
 function clearGrid() {
@@ -168,9 +206,13 @@ function populateInstrumentGrid(filterText = '') {
   });
 }
 
-function selectInstrument(key, label) {
+function updateInstrumentLabel(key, label) {
   currentInstrumentKey = key;
   currentInstrumentLabel.textContent = label;
+}
+
+function selectInstrument(key, label) {
+  updateInstrumentLabel(key, label);
   clearActiveNotes();
   audio.loadInstrument(key);
   closeModal();
@@ -209,7 +251,7 @@ function onDevicesChanged(hasDevice) {
 }
 
 function initKeyboard() {
-  keyboard.build(getElement('keyboard'), noteOn, noteOff);
+  keyboard.build(getElement('keyboard'), virtualNoteOn, virtualNoteOff, transposeOffset * SEMITONES_PER_OCTAVE);
 }
 
 function initAudio() {
@@ -238,34 +280,30 @@ function blurOnEnter(event) {
   if (event.key === 'Enter') event.target.blur();
 }
 
-function wireSizeControls() {
-  sizeSlider.addEventListener('input', () => applySize(parseInt(sizeSlider.value, 10)));
-  sizeInput.addEventListener('change', () => {
-    const val = parseIntOrDefault(sizeInput.value, SIZE_DEFAULT);
-    applySize(val);
-  });
-  sizeInput.addEventListener('keydown', blurOnEnter);
-  sizeReset.addEventListener('click', () => applySize(SIZE_DEFAULT));
+function wireSliderControl({ slider, input, reset, apply, parseValue, defaultValue }) {
+  slider.addEventListener('input', () => apply(parseValue(slider.value)));
+  input.addEventListener('change', () => apply(parseValue(input.value)));
+  input.addEventListener('keydown', blurOnEnter);
+  reset.addEventListener('click', () => apply(defaultValue));
 }
 
-function wireReleaseControls() {
-  releaseSlider.addEventListener('input', () => applyRelease(parseFloat(releaseSlider.value)));
-  releaseInput.addEventListener('change', () => {
-    const val = parseFloatOrDefault(releaseInput.value, RELEASE_DEFAULT);
-    applyRelease(val);
-  });
-  releaseInput.addEventListener('keydown', blurOnEnter);
-  releaseReset.addEventListener('click', () => applyRelease(RELEASE_DEFAULT));
+function applyTranspose(val) {
+  transposeOffset = parseIntOrDefault(val, TRANSPOSE_DEFAULT);
+  transposeOffset = clamp(transposeOffset, TRANSPOSE_MIN, TRANSPOSE_MAX);
+  transposeSlider.value = transposeOffset;
+  transposeInput.value = transposeOffset;
+  storeNumber(TRANSPOSE_KEY, transposeOffset);
+}
+
+function loadSavedTranspose() {
+  const saved = loadNumber(TRANSPOSE_KEY, TRANSPOSE_DEFAULT);
+  return clamp(saved, TRANSPOSE_MIN, TRANSPOSE_MAX);
 }
 
 function applyLoop(enabled) {
   loopToggle.checked = enabled;
   storeBoolean(LOOP_KEY, enabled);
   audio.setLoopMode(enabled);
-}
-
-function wireLoopControl() {
-  loopToggle.addEventListener('change', () => applyLoop(loopToggle.checked));
 }
 
 function wireMidi() {
@@ -280,10 +318,39 @@ function wireModal() {
   instrumentSearch.addEventListener('input', (e) => populateInstrumentGrid(e.target.value));
 }
 
+function rebuildKeyboard() {
+  keyboard.build(getElement('keyboard'), virtualNoteOn, virtualNoteOff, transposeOffset * SEMITONES_PER_OCTAVE);
+}
+
 function wireEvents() {
-  wireSizeControls();
-  wireReleaseControls();
-  wireLoopControl();
+  wireSliderControl({
+    slider: sizeSlider,
+    input: sizeInput,
+    reset: sizeReset,
+    apply: applySize,
+    parseValue: (v) => parseInt(v, 10),
+    defaultValue: SIZE_DEFAULT
+  });
+
+  wireSliderControl({
+    slider: releaseSlider,
+    input: releaseInput,
+    reset: releaseReset,
+    apply: applyRelease,
+    parseValue: parseFloat,
+    defaultValue: RELEASE_DEFAULT
+  });
+
+  wireSliderControl({
+    slider: transposeSlider,
+    input: transposeInput,
+    reset: transposeReset,
+    apply: (val) => { applyTranspose(val); rebuildKeyboard(); },
+    parseValue: (v) => parseInt(v, 10),
+    defaultValue: TRANSPOSE_DEFAULT
+  });
+
+  loopToggle.addEventListener('change', () => applyLoop(loopToggle.checked));
   wireMidi();
   wireModal();
   landingScreen.addEventListener('click', startGame);
@@ -292,6 +359,7 @@ function wireEvents() {
 function restoreSettings() {
   applySize(loadSavedSize());
   applyRelease(loadSavedRelease());
+  applyTranspose(loadSavedTranspose());
   applyLoop(loadBoolean(LOOP_KEY));
 }
 

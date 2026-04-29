@@ -1,4 +1,4 @@
-import { LAYOUT, parseNoteName, noteDisplayName, isBlackKey } from './notes.js';
+import { LAYOUT, parseNoteName, midiToName, isBlackKey } from './notes.js';
 
 const STAGGER_STEP = 0.04;
 
@@ -12,11 +12,11 @@ function applyStaggerDelay(element, column, row) {
   element.style.animationDelay = `${calculateStaggerDelay(column, row)}s`;
 }
 
-function createKeyElement(note, midi, column, row) {
+function createKeyElement(note, baseMidi, column, row, transposeOffset) {
   const key = document.createElement('div');
   key.className = `key${isBlackKey(note) ? ' black' : ''}`;
-  key.dataset.note = midi;
-  key.textContent = noteDisplayName(note);
+  key.dataset.note = baseMidi;
+  key.textContent = midiToName(baseMidi + transposeOffset);
   applyStaggerDelay(key, column, row);
   return key;
 }
@@ -30,13 +30,13 @@ function attachPointerEvents(key, midi, onNoteOn, onNoteOff) {
   key.addEventListener('pointerleave', () => onNoteOff(midi));
 }
 
-function buildRowElement(rowData, rowIndex, onNoteOn, onNoteOff) {
+function buildRowElement(rowData, rowIndex, onNoteOn, onNoteOff, transposeOffset) {
   const rowEl = document.createElement('div');
   rowEl.className = `keyboard-row ${rowData.row}`;
 
   rowData.notes.forEach((note, colIndex) => {
     const midi = parseNoteName(note);
-    const key = createKeyElement(note, midi, colIndex, rowIndex);
+    const key = createKeyElement(note, midi, colIndex, rowIndex, transposeOffset);
     attachPointerEvents(key, midi, onNoteOn, onNoteOff);
     rowEl.appendChild(key);
   });
@@ -44,37 +44,27 @@ function buildRowElement(rowData, rowIndex, onNoteOn, onNoteOff) {
   return rowEl;
 }
 
-export function build(containerEl, onNoteOn, onNoteOff) {
+export function build(containerEl, onNoteOn, onNoteOff, transposeOffset = 0) {
   keyboardEl = containerEl;
   keyboardEl.innerHTML = '';
 
   LAYOUT.forEach((row, rowIndex) => {
-    const rowEl = buildRowElement(row, rowIndex, onNoteOn, onNoteOff);
+    const rowEl = buildRowElement(row, rowIndex, onNoteOn, onNoteOff, transposeOffset);
     keyboardEl.appendChild(rowEl);
   });
 }
 
-function readMidiFromKey(key) {
-  return parseInt(key.dataset.note, 10);
-}
-
-function forEachMatchingKey(pitchClass, callback) {
-  if (!keyboardEl) return;
-  keyboardEl.querySelectorAll('.key').forEach((key) => {
-    if (readMidiFromKey(key) % 12 === pitchClass) {
-      callback(key);
-    }
-  });
+function selectExactKey(midi) {
+  if (!keyboardEl) return [];
+  return keyboardEl.querySelectorAll(`[data-note="${midi}"]`);
 }
 
 export function highlightOn(midi) {
-  const pitchClass = midi % 12;
-  forEachMatchingKey(pitchClass, (key) => key.classList.add('active'));
+  selectExactKey(midi).forEach((key) => key.classList.add('active'));
 }
 
 export function highlightOff(midi) {
-  const pitchClass = midi % 12;
-  forEachMatchingKey(pitchClass, (key) => key.classList.remove('active'));
+  selectExactKey(midi).forEach((key) => key.classList.remove('active'));
 }
 
 export function clearAllHighlights() {
