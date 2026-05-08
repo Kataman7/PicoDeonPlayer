@@ -189,13 +189,25 @@ export function isBlackKey(name) {
 
 const SEMITONE_NAMES = Object.keys(SEMITONE);
 
-export function midiToName(midi) {
+function semitoneKeyName(midi) {
   const semitoneVal = midi % 12;
-  const octaveVal = Math.floor(midi / 12) - 1 - BASE_OCTAVE;
-  const keyName = SEMITONE_NAMES.find((k) => SEMITONE[k] === semitoneVal);
+  return SEMITONE_NAMES.find((k) => SEMITONE[k] === semitoneVal);
+}
 
+export function midiToName(midi) {
+  const keyName = semitoneKeyName(midi);
   if (!keyName) return '???';
+  return DISPLAY[keyName] || keyName;
+}
 
-  const displayKey = DISPLAY[keyName] || keyName;
-  return displayKey + (octaveVal === 0 ? '' : octaveVal);
+export const SOLFEGE = {
+  C: 'Do', Db: 'R\u00E9\u266D', D: 'R\u00E9', Eb: 'Mi\u266D', E: 'Mi',
+  F: 'Fa', Fs: 'Fa\u266F', G: 'Sol', Ab: 'La\u266D', A: 'La',
+  Bb: 'Si\u266D', B: 'Si'
+};
+
+export function midiToSolfege(midi) {
+  const keyName = semitoneKeyName(midi);
+  if (!keyName) return '???';
+  return SOLFEGE[keyName] || keyName;
 }

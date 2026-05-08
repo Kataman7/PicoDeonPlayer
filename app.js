@@ -11,12 +11,20 @@ const SIZE_MIN = 50;
 const SIZE_MAX = 150;
 const SIZE_STEP = 10;
 
+const GAP_KEY = 'picodeon-gap-scale';
+const GAP_DEFAULT = 100;
+const GAP_MIN = 0;
+const GAP_MAX = 200;
+const GAP_STEP = 10;
+
 const RELEASE_KEY = 'picodeon-release-time';
-const RELEASE_DEFAULT = 0.2;
+const RELEASE_DEFAULT = 0.5;
 const RELEASE_MIN = 0;
 const RELEASE_MAX = 1;
 
 const LOOP_KEY = 'picodeon-loop';
+const SOLFEGE_KEY = 'picodeon-solfege';
+const SQUARE_KEY = 'picodeon-square';
 
 const TRANSPOSE_KEY = 'picodeon-transpose';
 const TRANSPOSE_DEFAULT = 0;
@@ -27,6 +35,7 @@ const SEMITONES_PER_OCTAVE = 12;
 const activeNotes = new Set();
 let currentInstrumentKey = DEFAULT_INSTRUMENT;
 let transposeOffset = TRANSPOSE_DEFAULT;
+let showSolfege = false;
 
 const currentInstrumentLabel = getElement('currentInstrumentLabel');
 const btnInstrument = getElement('btnInstrument');
@@ -41,10 +50,15 @@ const midiStatusEl = getElement('midiStatus');
 const sizeSlider = getElement('sizeSlider');
 const sizeInput = getElement('sizeInput');
 const sizeReset = getElement('sizeReset');
+const gapSlider = getElement('gapSlider');
+const gapInput = getElement('gapInput');
+const gapReset = getElement('gapReset');
 const releaseSlider = getElement('releaseSlider');
 const releaseInput = getElement('releaseInput');
 const releaseReset = getElement('releaseReset');
 const loopToggle = getElement('loopToggle');
+const solfegeToggle = getElement('solfegeToggle');
+const squareToggle = getElement('squareToggle');
 const transposeSlider = getElement('transposeSlider');
 const transposeInput = getElement('transposeInput');
 const transposeReset = getElement('transposeReset');
@@ -101,6 +115,20 @@ function applySize(val) {
 function loadSavedSize() {
   const saved = loadNumber(SIZE_KEY, SIZE_DEFAULT);
   return clamp(saved, SIZE_MIN, SIZE_MAX);
+}
+
+function applyGap(val) {
+  const clamped = roundToStep(clamp(val, GAP_MIN, GAP_MAX), GAP_STEP);
+  const scale = clamped / 100;
+  document.documentElement.style.setProperty('--gap-scale', scale);
+  gapSlider.value = clamped;
+  gapInput.value = clamped;
+  storeNumber(GAP_KEY, clamped);
+}
+
+function loadSavedGap() {
+  const saved = loadNumber(GAP_KEY, GAP_DEFAULT);
+  return clamp(saved, GAP_MIN, GAP_MAX);
 }
 
 function applyRelease(val) {
@@ -251,7 +279,7 @@ function onDevicesChanged(hasDevice) {
 }
 
 function initKeyboard() {
-  keyboard.build(getElement('keyboard'), virtualNoteOn, virtualNoteOff, transposeOffset * SEMITONES_PER_OCTAVE);
+  keyboard.build(getElement('keyboard'), virtualNoteOn, virtualNoteOff, transposeOffset * SEMITONES_PER_OCTAVE, showSolfege);
 }
 
 function initAudio() {
@@ -306,6 +334,19 @@ function applyLoop(enabled) {
   audio.setLoopMode(enabled);
 }
 
+function applySolfege(enabled) {
+  showSolfege = enabled;
+  solfegeToggle.checked = enabled;
+  storeBoolean(SOLFEGE_KEY, enabled);
+  keyboard.updateNotation(enabled, transposeOffset * SEMITONES_PER_OCTAVE);
+}
+
+function applySquare(enabled) {
+  squareToggle.checked = enabled;
+  storeBoolean(SQUARE_KEY, enabled);
+  document.body.classList.toggle('square-keys', enabled);
+}
+
 function wireMidi() {
   midi.setOnMessage(handleMidiNote);
   midi.setOnDevicesChanged(onDevicesChanged);
@@ -318,10 +359,6 @@ function wireModal() {
   instrumentSearch.addEventListener('input', (e) => populateInstrumentGrid(e.target.value));
 }
 
-function rebuildKeyboard() {
-  keyboard.build(getElement('keyboard'), virtualNoteOn, virtualNoteOff, transposeOffset * SEMITONES_PER_OCTAVE);
-}
-
 function wireEvents() {
   wireSliderControl({
     slider: sizeSlider,
@@ -330,6 +367,15 @@ function wireEvents() {
     apply: applySize,
     parseValue: (v) => parseInt(v, 10),
     defaultValue: SIZE_DEFAULT
+  });
+
+  wireSliderControl({
+    slider: gapSlider,
+    input: gapInput,
+    reset: gapReset,
+    apply: applyGap,
+    parseValue: (v) => parseInt(v, 10),
+    defaultValue: GAP_DEFAULT
   });
 
   wireSliderControl({
@@ -345,12 +391,14 @@ function wireEvents() {
     slider: transposeSlider,
     input: transposeInput,
     reset: transposeReset,
-    apply: (val) => { applyTranspose(val); rebuildKeyboard(); },
+    apply: (val) => { applyTranspose(val); keyboard.updateNotation(showSolfege, transposeOffset * SEMITONES_PER_OCTAVE); },
     parseValue: (v) => parseInt(v, 10),
     defaultValue: TRANSPOSE_DEFAULT
   });
 
   loopToggle.addEventListener('change', () => applyLoop(loopToggle.checked));
+  solfegeToggle.addEventListener('change', () => applySolfege(solfegeToggle.checked));
+  squareToggle.addEventListener('change', () => applySquare(squareToggle.checked));
   wireMidi();
   wireModal();
   landingScreen.addEventListener('click', startGame);
@@ -358,9 +406,12 @@ function wireEvents() {
 
 function restoreSettings() {
   applySize(loadSavedSize());
+  applyGap(loadSavedGap());
   applyRelease(loadSavedRelease());
   applyTranspose(loadSavedTranspose());
   applyLoop(loadBoolean(LOOP_KEY));
+  applySolfege(loadBoolean(SOLFEGE_KEY));
+  applySquare(loadBoolean(SQUARE_KEY));
 }
 
 wireEvents();
